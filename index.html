@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#050a05">
+<title>🐍 Snake</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bungee&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #050a05;
+    --surface:   #0c140c;
+    --panel:     #111b11;
+    --border:    #1c2e1c;
+    --green-1:   #00ff41;
+    --green-2:   #00cc33;
+    --green-3:   #009922;
+    --green-4:   #006614;
+    --red:       #ff3333;
+    --gold:      #ffd700;
+    --muted:     #3a5a3a;
+    --text-dim:  #2a4a2a;
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left, 0px);
+    --safe-right:  env(safe-area-inset-right, 0px);
+  }
+
+  *, *::before, *::after {
+    margin: 0; padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Space Mono', monospace;
+    color: var(--green-1);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding-top: calc(var(--safe-top) + 4px);
+    padding-bottom: calc(var(--safe-bottom) + 4px);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    padding: 0 8px 4px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .stat {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px 6px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,0.02) 2px,rgba(0,255,65,0.02) 4px);
+    pointer-events: none;
+  }
+
+  .stat-label {
+    font-size: 7px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 1px;
+  }
+
+  .stat-value {
+    font-family: 'Bungee', cursive;
+    font-size: 16px;
+    color: var(--green-1);
+    text-shadow: 0 0 10px var(--green-1);
+    display: block;
+    line-height: 1;
+  }
+
+  .stat-value.gold { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
+
+  @keyframes popScore {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); color: #fff; }
+    100% { transform: scale(1); }
+  }
+  .pop { animation: popScore 0.25s ease; }
+
+  /* BOARD */
+  .board-area {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    min-height: 0;
+  }
+
+  .board-wrap {
+    position: relative;
+    border: 2px solid var(--green-4);
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px #010e01, 0 0 30px rgba(0,255,65,0.12), inset 0 0 40px rgba(0,0,0,0.6);
+  }
+
+  #gameCanvas {
+    display: block;
+    border-radius: 6px;
+    background: var(--surface);
+    background-image:
+      linear-gradient(rgba(0,255,65,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.025) 1px, transparent 1px);
+  }
+
+  /* OVERLAY */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(2,8,2,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(4px);
+  }
+
+  .overlay.show { opacity: 1; pointer-events: all; }
+
+  .ov-emoji {
+    font-size: 44px;
+    filter: drop-shadow(0 0 16px rgba(0,255,65,0.6));
+    animation: floatEmoji 2.5s ease-in-out infinite;
+  }
+
+  @keyframes floatEmoji {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+
+  .ov-title {
+    font-family: 'Bungee', cursive;
+    font-size: 28px;
+    color: var(--green-1);
+    text-shadow: 0 0 20px var(--green-1);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  .ov-title.red {
+    color: var(--red);
+    text-shadow: 0 0 20px var(--red);
+    animation: shakeX 0.4s ease;
+  }
+
+  @keyframes shakeX {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-10px); }
+    75%      { transform: translateX(10px); }
+  }
+
+  .ov-scores { display: flex; gap: 20px; text-align: center; }
+
+  .ov-score-item { display: flex; flex-direction: column; gap: 4px; }
+
+  .ov-score-label { font-size: 8px; letter-spacing: 2px; color: var(--muted); }
+
+  .ov-score-value {
+    font-family: 'Bungee', cursive;
+    font-size: 22px;
+    color: var(--green-1);
+    text-shadow: 0 0 10px var(--green-1);
+  }
+
+  .speed-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+  .spd {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    min-height: 32px;
+  }
+
+  .spd.on {
+    border-color: var(--green-1);
+    color: var(--green-1);
+    text-shadow: 0 0 6px var(--green-1);
+    box-shadow: 0 0 10px rgba(0,255,65,0.2);
+  }
+
+  .btn-play {
+    background: var(--green-1);
+    color: #000;
+    border: none;
+    font-family: 'Bungee', cursive;
+    font-size: 16px;
+    letter-spacing: 2px;
+    padding: 14px 40px;
+    border-radius: 50px;
+    cursor: pointer;
+    min-height: 52px;
+    min-width: 160px;
+    box-shadow: 0 0 24px rgba(0,255,65,0.5), 0 4px 16px rgba(0,0,0,0.4);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+
+  .btn-play:active { transform: scale(0.95); box-shadow: 0 0 12px rgba(0,255,65,0.3); }
+
+  .ov-hint { font-size: 8px; color: var(--text-dim); letter-spacing: 1px; text-align: center; line-height: 2; }
+
+  /* PAUSE OVERLAY */
+  .pause-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(2,8,2,0.85);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    border-radius: 6px;
+    backdrop-filter: blur(6px);
+  }
+
+  .pause-overlay.show { display: flex; }
+
+  .pause-title {
+    font-family: 'Bungee', cursive;
+    font-size: 32px;
+    color: var(--green-1);
+    text-shadow: 0 0 20px var(--green-1);
+    letter-spacing: 4px;
+  }
+
+  /* TOAST */
+  .toast {
+    position: absolute;
+    top: 18%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    font-family: 'Bungee', cursive;
+    font-size: 18px;
+    color: var(--gold);
+    text-shadow: 0 0 16px var(--gold);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    white-space: nowrap;
+    z-index: 10;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* CONTROLS */
+  .controls {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px 2px;
+    gap: 8px;
+  }
+
+  .dpad {
+    display: grid;
+    grid-template-areas: ". up ." "left mid right" ". down .";
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3px;
+    width: 126px;
+    height: 126px;
+  }
+
+  .dpad-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.08s;
+    touch-action: manipulation;
+  }
+
+  .dpad-btn:active, .dpad-btn.pressed {
+    background: var(--panel);
+    border-color: var(--green-3);
+    transform: scale(0.9);
+  }
+
+  .dpad-btn svg { width: 22px; height: 22px; fill: var(--green-2); filter: drop-shadow(0 0 4px var(--green-3)); }
+
+  .dpad-up    { grid-area: up; }
+  .dpad-down  { grid-area: down; }
+  .dpad-left  { grid-area: left; }
+  .dpad-right { grid-area: right; }
+
+  .dpad-mid {
+    grid-area: mid;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .dpad-mid::after {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .right-controls { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+  .pause-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--green-2);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; letter-spacing: 1px;
+    transition: background 0.1s;
+  }
+
+  .pause-btn:active { background: var(--panel); }
+  .pause-btn svg { width: 14px; height: 14px; fill: var(--green-2); }
+
+  .level-badge {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    text-align: center;
+  }
+
+  .level-badge .lbl { font-size: 6px; color: var(--muted); letter-spacing: 2px; display: block; }
+  .level-badge .val { font-family: 'Bungee', cursive; font-size: 15px; color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+
+  .swipe-hint { display: none; }
+
+  .scanlines {
+    position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px);
+  }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="stat">
+      <span class="stat-label">SCORE</span>
+      <span class="stat-value" id="scoreVal">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">BEST</span>
+      <span class="stat-value gold" id="bestVal">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">STREAK</span>
+      <span class="stat-value" id="streakVal">0</span>
+    </div>
+  </div>
+
+  <div class="board-area">
+    <div class="board-wrap" id="boardWrap">
+      <canvas id="gameCanvas"></canvas>
+
+      <div class="toast" id="toast"></div>
+
+      <div class="overlay show" id="overlay">
+        <div class="ov-emoji" id="ovEmoji">🐍</div>
+        <div class="ov-title" id="ovTitle">SNAKE</div>
+
+        <div class="ov-scores" id="ovScores" style="display:none">
+          <div class="ov-score-item">
+            <span class="ov-score-label">SCORE</span>
+            <span class="ov-score-value" id="ovScoreNum">0</span>
+          </div>
+          <div class="ov-score-item">
+            <span class="ov-score-label">BEST</span>
+            <span class="ov-score-value" id="ovBestNum">0</span>
+          </div>
+        </div>
+
+        <div class="speed-row" id="speedRow">
+          <button class="spd" data-s="160">🐢 SLOW</button>
+          <button class="spd on" data-s="110">NORMAL</button>
+          <button class="spd" data-s="65">⚡ FAST</button>
+          <button class="spd" data-s="38">🔥 INSANE</button>
+        </div>
+
+        <button class="btn-play" id="playBtn">PLAY</button>
+        <div class="ov-hint" id="ovHint">Swipe or use D-pad to move</div>
+      </div>
+
+      <div class="pause-overlay" id="pauseOverlay">
+        <div style="font-size:40px">⏸</div>
+        <div class="pause-title">PAUSED</div>
+        <button class="btn-play" id="resumeBtn">RESUME</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="dpad">
+      <button class="dpad-btn dpad-up"    id="btnU"><svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg></button>
+      <button class="dpad-btn dpad-left"  id="btnL"><svg viewBox="0 0 24 24"><path d="M4 12l8-8v5h8v6h-8v5z"/></svg></button>
+      <div class="dpad-mid"></div>
+      <button class="dpad-btn dpad-right" id="btnR"><svg viewBox="0 0 24 24"><path d="M20 12l-8 8v-5H4v-6h8V4z"/></svg></button>
+      <button class="dpad-btn dpad-down"  id="btnD"><svg viewBox="0 0 24 24"><path d="M12 20l8-8h-5V4h-6v8H4z"/></svg></button>
+    </div>
+
+    <div class="right-controls">
+      <button class="pause-btn" id="pauseBtn">
+        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        <span style="font-size:8px;letter-spacing:1px">PAUSE</span>
+      </button>
+      <div class="level-badge">
+        <span class="lbl">LVL</span>
+        <span class="val" id="levelVal">1</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="swipe-hint">SWIPE ANYWHERE TO TURN</div>
+
+</div>
+
+<script>
+// ── DOM ────────────────────────────────────────────────────────
+const canvas        = document.getElementById('gameCanvas');
+const ctx           = canvas.getContext('2d');
+const boardWrap     = document.getElementById('boardWrap');
+const overlay       = document.getElementById('overlay');
+const ovTitle       = document.getElementById('ovTitle');
+const ovEmoji       = document.getElementById('ovEmoji');
+const ovScores      = document.getElementById('ovScores');
+const ovScoreNum    = document.getElementById('ovScoreNum');
+const ovBestNum     = document.getElementById('ovBestNum');
+const pauseOverlay  = document.getElementById('pauseOverlay');
+const toast         = document.getElementById('toast');
+const scoreVal      = document.getElementById('scoreVal');
+const bestVal       = document.getElementById('bestVal');
+const streakVal     = document.getElementById('streakVal');
+const levelVal      = document.getElementById('levelVal');
+
+// ── Constants ──────────────────────────────────────────────────
+const COLS = 18, ROWS = 18;
+let CELL = 22;
+
+// ── State ──────────────────────────────────────────────────────
+let snake      = [];
+let dir        = { x: 1, y: 0 };
+let nextDir    = { x: 1, y: 0 };
+let food       = { x: 0, y: 0 };
+let score      = 0;
+let best       = parseInt(localStorage.getItem('snakeBestM') || '0');
+let level      = 1;
+let streak     = 0;
+let baseInterval = 110;   // chosen speed in ms — never changes mid-game
+let ticker     = null;    // the ONE setInterval reference
+let running    = false;
+let paused     = false;
+let particles  = [];
+let flashAlpha = 0;
+
+bestVal.textContent = best;
+
+// ── Resize canvas to fill available space ─────────────────────
+function resizeCanvas() {
+  const area = document.querySelector('.board-area');
+  const maxW = area.clientWidth  - 12;  // only 6px padding each side
+  const maxH = area.clientHeight - 8;   // minimal vertical gap
+  const size = Math.floor(Math.min(maxW, maxH) / COLS) * COLS;
+  CELL = size / COLS;
+  canvas.width  = size;
+  canvas.height = size;
+  boardWrap.style.width  = size + 'px';
+  boardWrap.style.height = size + 'px';
+  canvas.style.backgroundSize = `${CELL}px ${CELL}px`;
+}
+
+window.addEventListener('resize', () => { resizeCanvas(); });
+resizeCanvas();
+
+// ── Speed selector ─────────────────────────────────────────────
+document.querySelectorAll('.spd').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.spd').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    baseInterval = parseInt(btn.dataset.s);
+  });
+});
+
+// ── Init ───────────────────────────────────────────────────────
+function initGame() {
+  snake = [];
+  const mid = Math.floor(COLS / 2);
+  for (let i = 0; i < 4; i++) {
+    snake.push({ x: mid - i, y: Math.floor(ROWS / 2) });
+  }
+  dir        = { x: 1, y: 0 };
+  nextDir    = { x: 1, y: 0 };
+  score      = 0;
+  streak     = 0;
+  level      = 1;
+  particles  = [];
+  flashAlpha = 0;
+
+  scoreVal.textContent  = '0';
+  streakVal.textContent = '0';
+  levelVal.textContent  = '1';
+
+  placeFood();
+}
+
+// ── Food ───────────────────────────────────────────────────────
+function placeFood() {
+  let p;
+  do {
+    p = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+  } while (snake.some(s => s.x === p.x && s.y === p.y));
+  food = p;
+}
+
+// ── Ticker management ─────────────────────────────────────────
+// ONE function to (re)start the ticker at a given interval.
+// Always clears the old one first — this prevents double-tickers
+// which was the main cause of the game freezing after first score.
+function startTicker(ms) {
+  clearInterval(ticker);          // always kill the old one first
+  ticker = setInterval(tick, ms); // create exactly one new ticker
+}
+
+// ── Game tick ─────────────────────────────────────────────────
+function tick() {
+  if (!running || paused) return;  // guard: do nothing if game not active
+
+  // Commit the buffered direction
+  dir = { x: nextDir.x, y: nextDir.y };
+
+  // New head position with wall-wrap
+  const head = {
+    x: (snake[0].x + dir.x + COLS) % COLS,
+    y: (snake[0].y + dir.y + ROWS) % ROWS
+  };
+
+  // Self-collision check
+  if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    endGame();
+    return;
+  }
+
+  // Move: add new head to front
+  snake.unshift(head);
+
+  // Did we eat food?
+  if (head.x === food.x && head.y === food.y) {
+    // ── EAT ──────────────────────────────────────────────────
+    streak++;
+
+    const multi = streak >= 5 ? 3 : streak >= 3 ? 2 : 1;
+    const pts   = 10 * level * multi;
+    score      += pts;
+
+    if (streak >= 3) showToast(streak >= 5 ? `🔥 x${multi} COMBO!` : `⚡ x${multi}`);
+
+    // Update UI
+    scoreVal.textContent  = score;
+    streakVal.textContent = streak;
+
+    scoreVal.classList.remove('pop');
+    void scoreVal.offsetWidth; // force reflow to re-trigger animation
+    scoreVal.classList.add('pop');
+
+    // High score
+    if (score > best) {
+      best = score;
+      bestVal.textContent = best;
+      localStorage.setItem('snakeBestM', best);
+    }
+
+    // Level up?  (every 80 pts)
+    const newLevel = Math.floor(score / 80) + 1;
+    if (newLevel > level) {
+      level = newLevel;
+      levelVal.textContent = level;
+      showToast(`LEVEL ${level}!`);
+      vibrate([30, 20, 30]);
+
+      // Speed up: reduce interval by 6ms per level, floor at 35ms
+      const newMs = Math.max(35, baseInterval - (level - 1) * 6);
+      startTicker(newMs); // ← safe restart, no duplicate tickers
+    }
+
+    spawnParticles(head.x, head.y);
+    vibrate(15);
+    placeFood();           // place next food — game continues normally
+    // NOTE: we do NOT pop the tail here, so the snake grows by 1
+
+  } else {
+    // ── MOVE (no food) ────────────────────────────────────────
+    snake.pop();   // remove tail — snake stays same length
+    streak = 0;    // reset consecutive-eat streak
+  }
+
+  // draw() is handled by the RAF loop — no need to call it here
+}
+
+// ── End game ───────────────────────────────────────────────────
+function endGame() {
+  clearInterval(ticker); // stop the ticker
+  ticker  = null;
+  running = false;
+  flashAlpha = 0.45;
+  vibrate([80, 40, 80, 40, 120]);
+
+  setTimeout(() => {
+    ovTitle.textContent     = 'GAME OVER';
+    ovTitle.className       = 'ov-title red';
+    ovEmoji.textContent     = '💀';
+    ovScoreNum.textContent  = score;
+    ovBestNum.textContent   = best;
+    ovScores.style.display  = 'flex';
+    document.getElementById('ovHint').textContent = 'Tap to play again';
+    document.getElementById('playBtn').textContent = 'RESTART';
+    document.getElementById('speedRow').style.display = 'flex'; // show speed again
+    overlay.classList.add('show');
+  }, 420);
+}
+
+// ── Start game ─────────────────────────────────────────────────
+document.getElementById('playBtn').addEventListener('click', () => {
+  // Reset overlay to start state
+  ovTitle.textContent    = 'SNAKE';
+  ovTitle.className      = 'ov-title';
+  ovEmoji.textContent    = '🐍';
+  ovScores.style.display = 'none';
+  document.getElementById('ovHint').innerHTML = 'Swipe or use D-pad to move';
+  document.getElementById('playBtn').textContent = 'PLAY';
+
+  overlay.classList.remove('show');
+  pauseOverlay.classList.remove('show');
+
+  initGame();
+  running = true;
+  startTicker(baseInterval); // start with chosen speed
+});
+
+// ── Pause ──────────────────────────────────────────────────────
+function togglePause() {
+  if (!running) return;
+  paused = !paused;
+  pauseOverlay.classList.toggle('show', paused);
+}
+
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
+document.getElementById('resumeBtn').addEventListener('click', togglePause);
+
+// ── Vibration ──────────────────────────────────────────────────
+function vibrate(pattern) {
+  try { if ('vibrate' in navigator) navigator.vibrate(pattern); } catch(e) {}
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 900);
+}
+
+// ── Particles ─────────────────────────────────────────────────
+function spawnParticles(gx, gy) {
+  const cx = gx * CELL + CELL / 2;
+  const cy = gy * CELL + CELL / 2;
+  for (let i = 0; i < 10; i++) {
+    const a  = (i / 10) * Math.PI * 2;
+    const sp = 1.5 + Math.random() * 2;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: 1, r: 2 + Math.random() * 3,
+      col: ['#00ff41','#ff3333','#fff','#ffd700'][i % 4]
+    });
+  }
+}
+
+// ── Draw ───────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawFood();
+  drawSnake();
+  drawParticles();
+
+  // Death flash fades out
+  if (flashAlpha > 0) {
+    ctx.fillStyle = `rgba(255,0,0,${flashAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    flashAlpha = Math.max(0, flashAlpha - 0.02);
+  }
+}
+
+function drawFood() {
+  const cx = food.x * CELL + CELL / 2;
+  const cy = food.y * CELL + CELL / 2;
+  const r  = CELL / 2 - 2;
+  const pulse = 1 + Math.sin(Date.now() / 180) * 0.18;
+
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 1.8);
+  g.addColorStop(0, 'rgba(255,60,60,0.35)');
+  g.addColorStop(1, 'transparent');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * pulse * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowColor = '#ff3333';
+  ctx.shadowBlur  = 14;
+  ctx.fillStyle   = '#ff4455';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * pulse, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur  = 0;
+  ctx.fillStyle   = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(cx - r * 0.25, cy - r * 0.25, r * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawSnake() {
+  snake.forEach((seg, i) => {
+    const x = seg.x * CELL, y = seg.y * CELL, p = 1;
+    const t = i / snake.length;
+
+    if (i === 0) {
+      ctx.fillStyle   = '#00ff41';
+      ctx.shadowColor = '#00ff41';
+      ctx.shadowBlur  = 18;
+    } else {
+      const g = Math.floor(220 - t * 100);
+      ctx.fillStyle   = `rgb(0,${g},20)`;
+      ctx.shadowColor = '#00cc33';
+      ctx.shadowBlur  = 5;
+    }
+
+    rr(ctx, x + p, y + p, CELL - p * 2, CELL - p * 2, 4);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    if (i === 0) drawEyes(seg);
+  });
+}
+
+function rr(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+function drawEyes(seg) {
+  const cx = seg.x * CELL + CELL / 2;
+  const cy = seg.y * CELL + CELL / 2;
+  const ex = dir.x * 4, ey = dir.y * 4;
+  const px = dir.y * 3, py = dir.x * 3;
+
+  [[cx + ex - px, cy + ey - py], [cx + ex + px, cy + ey + py]].forEach(([ex2, ey2]) => {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(ex2, ey2, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(ex2 + dir.x, ey2 + dir.y, 1, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function drawParticles() {
+  particles = particles.filter(p => p.life > 0.02 && p.r * p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.045;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle   = p.col;
+    const radius = Math.max(0, p.r * p.life); // guard: radius can never be negative
+    if (radius <= 0) return;                   // skip drawing dead particles entirely
+    ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ── RAF render loop (always running at 60fps) ─────────────────
+function rafLoop() {
+  draw();
+  requestAnimationFrame(rafLoop);
+}
+requestAnimationFrame(rafLoop);
+
+// ── Swipe detection ────────────────────────────────────────────
+let tx = 0, ty = 0;
+const MIN_SWIPE = 25;
+
+function handleSwipeStart(e) {
+  const t = e.touches ? e.touches[0] : e;
+  tx = t.clientX; ty = t.clientY;
+}
+
+function handleSwipeEnd(e) {
+  if (!running || paused) return;
+  const t = e.changedTouches ? e.changedTouches[0] : e;
+  const dx = t.clientX - tx;
+  const dy = t.clientY - ty;
+  if (Math.abs(dx) < MIN_SWIPE && Math.abs(dy) < MIN_SWIPE) return;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 0 && dir.x !== -1) nextDir = { x: 1,  y: 0 };
+    else if (dx < 0 && dir.x !== 1)  nextDir = { x: -1, y: 0 };
+  } else {
+    if (dy > 0 && dir.y !== -1) nextDir = { x: 0, y: 1  };
+    else if (dy < 0 && dir.y !== 1)  nextDir = { x: 0, y: -1 };
+  }
+}
+
+document.body.addEventListener('touchstart', handleSwipeStart, { passive: true });
+document.body.addEventListener('touchend',   handleSwipeEnd,   { passive: true });
+
+// ── D-pad ──────────────────────────────────────────────────────
+function applyDir(nx, ny) {
+  if (nx === 1  && dir.x === -1) return;
+  if (nx === -1 && dir.x ===  1) return;
+  if (ny === 1  && dir.y === -1) return;
+  if (ny === -1 && dir.y ===  1) return;
+  nextDir = { x: nx, y: ny };
+  vibrate(8);
+}
+
+['touchstart', 'click'].forEach(evt => {
+  document.getElementById('btnU').addEventListener(evt, e => { e.preventDefault(); applyDir(0, -1); }, { passive: false });
+  document.getElementById('btnD').addEventListener(evt, e => { e.preventDefault(); applyDir(0,  1); }, { passive: false });
+  document.getElementById('btnL').addEventListener(evt, e => { e.preventDefault(); applyDir(-1, 0); }, { passive: false });
+  document.getElementById('btnR').addEventListener(evt, e => { e.preventDefault(); applyDir(1,  0); }, { passive: false });
+});
+
+document.querySelectorAll('.dpad-btn').forEach(btn => {
+  btn.addEventListener('touchstart', () => btn.classList.add('pressed'),    { passive: true });
+  btn.addEventListener('touchend',   () => btn.classList.remove('pressed'), { passive: true });
+});
+
+// ── Keyboard (desktop fallback) ────────────────────────────────
+document.addEventListener('keydown', e => {
+  const map = {
+    ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
+    w:{x:0,y:-1}, s:{x:0,y:1}, a:{x:-1,y:0}, d:{x:1,y:0},
+    W:{x:0,y:-1}, S:{x:0,y:1}, A:{x:-1,y:0}, D:{x:1,y:0},
+  };
+  if (map[e.key]) { applyDir(map[e.key].x, map[e.key].y); e.preventDefault(); }
+  if (e.key === 'p' || e.key === 'P') togglePause();
+});
+
+// ── Boot ───────────────────────────────────────────────────────
+initGame(); // set up board so food is visible before first play
+</script>
+</body>
+</html>
