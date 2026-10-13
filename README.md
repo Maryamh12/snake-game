@@ -324,9 +324,6 @@ This project was built as a learning exercise to explore:
 - Touch/gesture input handling
 - CSS animations and visual effects
 
-**Original project:** [github.com/Maryamh12/Game_project](https://github.com/Maryamh12/Game_project)  
-**Enhanced version:** Added Canvas rendering, mobile controls, animations, combo system, particles, and performance fixes.
-
 ---
 
 ## 📝 License
