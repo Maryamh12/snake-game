@@ -254,18 +254,6 @@ body.addEventListener('touchend', e => {
 ```
 
 
-### Option 4 — Vercel
-
-```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# In your project folder:
-vercel
-
-# Follow the prompts — your game goes live in ~30 seconds!
-```
-
 ---
 
 ## 🛠️ Customization Ideas
