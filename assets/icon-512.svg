@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#050a05"/>
+  <rect x="40" y="40" width="432" height="432" rx="24" fill="#0c140c" stroke="#1c2e1c" stroke-width="4"/>
+  <!-- Scanline effect strips -->
+  <rect x="40" y="40" width="432" height="2" fill="rgba(0,255,65,0.05)"/>
+  <rect x="40" y="46" width="432" height="2" fill="rgba(0,255,65,0.05)"/>
+  <!-- Snake body -->
+  <rect x="60" y="226" width="72" height="56" rx="10" fill="#006614"/>
+  <rect x="136" y="226" width="56" height="56" rx="10" fill="#009922"/>
+  <rect x="196" y="226" width="56" height="56" rx="10" fill="#00cc33"/>
+  <rect x="256" y="226" width="56" height="56" rx="10" fill="#00cc33"/>
+  <rect x="256" y="166" width="56" height="56" rx="10" fill="#00cc33"/>
+  <rect x="256" y="106" width="56" height="56" rx="10" fill="#00cc33"/>
+  <!-- Head -->
+  <rect x="316" y="106" width="76" height="76" rx="14" fill="#00ff41"/>
+  <!-- Eyes on head -->
+  <circle cx="344" cy="128" r="8" fill="white"/>
+  <circle cx="372" cy="128" r="8" fill="white"/>
+  <circle cx="346" cy="130" r="4" fill="black"/>
+  <circle cx="374" cy="130" r="4" fill="black"/>
+  <!-- Food -->
+  <circle cx="140" cy="380" r="34" fill="#ff4455"/>
+  <circle cx="128" cy="366" r="9" fill="rgba(255,255,255,0.4)"/>
+  <!-- Title text -->
+  <text x="256" y="480" text-anchor="middle" font-family="monospace" font-size="28" font-weight="bold" fill="#00ff41" letter-spacing="8">SNAKE</text>
+</svg>
